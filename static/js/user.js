@@ -174,56 +174,113 @@ function fazerLogin() {
 
 const express = require('express');
 const fs = require('fs');
+const cadastrar = express();
 
-const app = express();
 app.use(express.json());
 
-const USERS_FILE = './users.json';
+const FILE = './empresas.json';
 
-// Ler usuários
-function loadUsers() {
-  const data = fs.readFileSync(USERS_FILE);
-  return JSON.parse(data);
+// ===== UTIL =====
+function loadEmpresas() {
+  if (!fs.existsSync(FILE)) return [];
+  return JSON.parse(fs.readFileSync(FILE));
 }
 
-// Salvar usuários
-function saveUsers(users) {
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+function saveEmpresas(empresas) {
+  fs.writeFileSync(FILE, JSON.stringify(empresas, null, 2));
 }
 
-app.post('/register', (req, res) => {
-  const { username, password } = req.body;
+// ===== CNPJ =====
+function validarCNPJ(cnpj) {
+  cnpj = cnpj.replace(/\D/g, '');
+  if (cnpj.length !== 14 || /^(\d)\1+$/.test(cnpj)) return false;
+  return true; // simplificado (já suficiente para projeto)
+}
 
-  const users = loadUsers();
+// ===== ROTA =====
+app.post('/registrar', (req, res) => {
+  const {
+    nomeDaEmpresa,
+    cnpjDaEmpresa,
+    enderecoDaEmpresa,
+    numeroDaEmpresa,
+    responsavelDaEmpresa
+  } = req.body;
 
-  users.push({
-    username,
-    password: hashedPassword
+  if (
+    !nomeDaEmpresa ||
+    !cnpjDaEmpresa ||
+    !enderecoDaEmpresa ||
+    !numeroDaEmpresa ||
+    !responsavelDaEmpresa
+  ) {
+    return res.status(400).json({ message: "Preencha todos os campos" });
+  }
+
+  if (!validarCNPJ(cnpjDaEmpresa)) {
+    return res.status(400).json({ message: "CNPJ inválido" });
+  }
+
+  const empresas = loadEmpresas();
+
+  empresas.push({
+    id: Date.now(),
+    nomeDaEmpresa,
+    cnpjDaEmpresa,
+    enderecoDaEmpresa,
+    numeroDaEmpresa, // ✅ AGORA SALVA
+    responsavelDaEmpresa
   });
 
-  saveUsers(users);
-  res.json({ message: 'Usuário cadastrado' });
+  saveEmpresas(empresas);
+
+  res.json({ message: "✅ Empresa cadastrada com sucesso!" });
 });
 
+// ===== SERVIDOR =====
 app.listen(3000, () => {
-  console.log('Servidor rodando na porta 3000');
+  console.log("🚀 Servidor rodando em http://localhost:3000");
 });
 
 
-app.post('/register', (req, res) => {
-  const { Nomedaempresa, cnpjdaempresa } = req.body;
 
-  const users = loadUsers();
 
-  users.push({
-    username,
-    password: hashedPassword
+
+
+
+
+function cadastrarEmpresa() {
+  const dados = {
+    nomeDaEmpresa: document.getElementById("nomeDaEmpresa").value,
+    cnpjDaEmpresa: document.getElementById("cnpjDaEmpresa").value,
+    enderecoDaEmpresa: document.getElementById("enderecoDaEmpresa").value,
+    numeroDaEmpresa: document.getElementById("numeroDaEmpresa").value,
+    responsavelDaEmpresa: document.getElementById("responsavelDaEmpresa").value
+  };
+
+  if (
+    !dados.nomeDaEmpresa ||
+    !dados.cnpjDaEmpresa ||
+    !dados.enderecoDaEmpresa ||
+    !dados.numeroDaEmpresa ||
+    !dados.responsavelDaEmpresa
+  ) {
+    alert("⚠️ Preencha todos os campos!");
+    return;
+  }
+
+  fetch("http://localhost:3000/registrar", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados)
+  })
+  .then(res => res.json())
+  .then(resposta => {
+    alert(resposta.message);
+  })
+  .catch(() => {
+    alert("❌ Erro ao cadastrar empresa");
   });
+}
 
-  saveUsers(users);
-  res.json({ message: 'Usuário cadastrado' });
-});
 
-app.listen(3000, () => {
-  console.log('Servidor rodando na porta 3000');
-});
